@@ -1,0 +1,80 @@
+import numpy as np
+import pandas as pd
+df1=pd.read_csv(r"E:\Data\kcc_maharashtra_data.csv")
+#all crops according to the Query count in decreasing order
+x=df1.Crop.value_counts(normalize=False,sort=True,ascending=False)
+print(x)
+x_df=x.reset_index()
+x_df.columns=['Crop','Query_count_index']
+print(x_df)
+
+#crop data other than others and numeric value
+filtered_df=x_df[~x_df['Crop'].str.isnumeric() & (x_df['Crop']!='Others')]
+f1_df=pd.DataFrame(filtered_df)
+print(f1_df)
+
+results=[]
+crop_col=filtered_df['Crop']
+from sklearn import linear_model
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+#Crop analysis with respect to year and Query count index
+for i in range(f1_df.shape[0]):
+    rows=df1[df1['Crop']==crop_col.iloc[i]]
+    x1=rows.Year.value_counts(normalize=True,sort=True,ascending=False)
+    x1_df=x1.reset_index()
+    x1_df.columns=['Year','Query_count_index']
+    x1_df=pd.DataFrame(x1_df)
+    y1=x1_df.shape[0]
+    #print("\n",crop_col.iloc[i])
+    
+    # Liner Regression
+    X=x1_df['Year'].values.reshape(-1,1)
+    y=x1_df['Query_count_index'].values
+    X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=.4)
+    model=linear_model.LinearRegression()
+    model_fit1=model.fit(X_train,y_train)
+    slope=model.coef_[0]
+    intercept=model.intercept_
+    y_pred=model.predict(X_train)   
+    
+    #R2 value
+    desired_r2 = 0.7
+    current_r2 = R2(y_pred,y_train)
+    
+    #plot only when the R2 value is greater than 0.7
+    if current_r2 > desired_r2:
+        X_pred =np.linspace(min(X),max(X),100).reshape(-1,1)
+        y_pred = model.predict(X_pred)
+        print("\n",crop_col.iloc[i])
+        print(slope)
+        print(current_r2)
+        
+        # Plot of linear regression 
+        plt.figure(figsize=(2.5,2.5))
+        plt.scatter(X, y, color='Teal', label='Data Points',s=10)
+        plt.plot(X_pred, y_pred, color='orange', label='Regression Line')
+        plt.xlim([2011,2020])
+        plt.ylim([0,0.2])
+        plt.xlabel('Year', fontsize=15)
+        plt.ylabel('Querycount_index', fontsize=15)
+        #plt.title(crop_col.iloc[i], fontsize=15)
+        plot=plt.show()
+        #plt.savefig(f'E:\Data\fig\plot{i}.png')
+        
+        #print("current r2",current_r2)
+        results.append([crop_col.iloc[i], slope,intercept, current_r2])
+        
+              
+results_df = pd.DataFrame(results, columns=['Crop', 'Slope', 'Intercept', 'R2'])
+print(results_df)
+
+r1=results_df.sort_values(by=('R2'),ascending=True)
+print(r1.head(20))
+r2=results_df.sort_values(by=('Slope'),ascending=False)
+print(r2.head(20))
+
+results_df.to_csv('E:\Data\All crop analysis results1.csv', index=False)
